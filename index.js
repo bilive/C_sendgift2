@@ -140,6 +140,8 @@ class SendGift extends plugin_1.default {
                 const uids = user.userData['sendGiftUids'];
                 uids.forEach((uid) => {
                     medalListInfo.body.data.fansMedalList.forEach((fansMedal) => {
+                        if (fansMedal.level % 20 === 0)
+                            return;
                         if (uid === fansMedal.target_id) {
                             if (fansMedal.status === 1) {
                                 fansMedalList.unshift({

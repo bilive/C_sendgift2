@@ -156,6 +156,7 @@ class SendGift extends Plugin {
         // 从uid列表中抽取主播id，并依次插入任务队列，如果有佩戴勋章，进入队列顶部
         uids.forEach((uid) => {
           medalListInfo.body.data.fansMedalList.forEach((fansMedal) => {
+            if (fansMedal.level % 20 === 0) return
             if (uid === fansMedal.target_id) {
               if (fansMedal.status === 1) {
                 fansMedalList.unshift({
