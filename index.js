@@ -11,9 +11,9 @@ const plugin_1 = __importStar(require("../../plugin"));
 class SendGift extends plugin_1.default {
     constructor() {
         super();
-        this.name = '自动送礼2';
+        this.name = '自动送礼增强版';
         this.description = '自动清空在指定时间内的礼物';
-        this.version = '0.1.0';
+        this.version = '0.2.0';
         this.author = 'ShmilyChen';
     }
     async load({ defaultOptions, whiteList }) {
@@ -31,7 +31,7 @@ class SendGift extends plugin_1.default {
             type: 'numberArray'
         };
         whiteList.add('sendGiftUids');
-        defaultOptions.newUserData['sendGiftDay'] = 7;
+        defaultOptions.newUserData['sendGiftDay'] = 1;
         defaultOptions.info['sendGiftDay'] = {
             description: '自动送礼多少天内的礼物',
             tip: '自动送出礼物在多少天内过期的礼物',
@@ -45,6 +45,13 @@ class SendGift extends plugin_1.default {
             type: 'number'
         };
         whiteList.add('sendGiftRoom');
+        defaultOptions.newUserData['sendGiftBy20'] = true;
+        defaultOptions.info['sendGiftBy20'] = {
+            description: '是否养20级勋章',
+            tip: '自动是否养20级勋章',
+            type: 'boolean'
+        };
+        whiteList.add('sendGiftBy20');
         this.loaded = true;
     }
     async start({ users }) {
@@ -70,11 +77,10 @@ class SendGift extends plugin_1.default {
             const roomInit = await plugin_1.tools.XHR(room, 'Android');
             if (roomInit !== undefined && roomInit.response.statusCode === 200) {
                 if (roomInit.body.code === 0) {
-                    const mid = roomInit.body.data.uid;
-                    const room_id = roomInit.body.data.room_id;
+                    const { uid, room_id } = roomInit.body.data;
                     for (const giftData of bagList) {
                         if (giftData.expireat > 0 && giftData.expireat < 24 * 60 * 60 && giftData.gift_num > 0) {
-                            await this.sendGift(mid, giftData.gift_id, giftData.gift_num, giftData.id, room_id, user);
+                            await this.sendGift(uid, giftData.gift_id, giftData.gift_num, giftData.id, room_id, user);
                         }
                     }
                 }
@@ -140,7 +146,7 @@ class SendGift extends plugin_1.default {
                 const uids = user.userData['sendGiftUids'];
                 uids.forEach((uid) => {
                     medalListInfo.body.data.fansMedalList.forEach((fansMedal) => {
-                        if (fansMedal.level % 20 === 0)
+                        if (fansMedal.level % 20 === 0 && !user.userData['sendGiftBy20'])
                             return;
                         if (uid === fansMedal.target_id) {
                             if (fansMedal.status === 1) {
@@ -196,9 +202,7 @@ class SendGift extends plugin_1.default {
                     continue;
                 if (bag.expireat <= 0 || bag.expireat > user.userData['sendGiftDay'] * 24 * 60 * 60)
                     break;
-                if (bag.gift_id !== 1 && bag.gift_id !== 6)
-                    continue;
-                let gift_value = 0;
+                let gift_value;
                 switch (bag.gift_id) {
                     case 1:
                         gift_value = 1;
@@ -206,6 +210,10 @@ class SendGift extends plugin_1.default {
                     case 6:
                         gift_value = 10;
                         break;
+                    case 30607:
+                        gift_value = 50;
+                        break;
+                    default: continue;
                 }
                 let send_num = Math.floor(medal.feedNum / gift_value);
                 if (send_num >= bag.gift_num)

@@ -4,9 +4,9 @@ class SendGift extends Plugin {
   constructor() {
     super()
   }
-  public name = '自动送礼2'
+  public name = '自动送礼增强版'
   public description = '自动清空在指定时间内的礼物'
-  public version = '0.1.0'
+  public version = '0.2.0'
   public author = 'ShmilyChen'
   public async load({ defaultOptions, whiteList }: { defaultOptions: options, whiteList: Set<string> }) {
     // 自动送礼
@@ -26,7 +26,7 @@ class SendGift extends Plugin {
     }
     whiteList.add('sendGiftUids')
     // 自动送礼时间限制
-    defaultOptions.newUserData['sendGiftDay'] = 7
+    defaultOptions.newUserData['sendGiftDay'] = 1
     defaultOptions.info['sendGiftDay'] = {
       description: '自动送礼多少天内的礼物',
       tip: '自动送出礼物在多少天内过期的礼物',
@@ -41,6 +41,14 @@ class SendGift extends Plugin {
       type: 'number'
     }
     whiteList.add('sendGiftRoom')
+    // 是否养20级勋章
+    defaultOptions.newUserData['sendGiftBy20'] = true
+    defaultOptions.info['sendGiftBy20'] = {
+      description: '是否养20级勋章',
+      tip: '自动是否养20级勋章',
+      type: 'boolean'
+    }
+    whiteList.add('sendGiftBy20')
     this.loaded = true
   }
   public async start({ users }: { users: Map<string, User> }) {
@@ -74,13 +82,12 @@ class SendGift extends Plugin {
       if (roomInit !== undefined && roomInit.response.statusCode === 200) {
         if (roomInit.body.code === 0) {
           // masterID
-          const mid = roomInit.body.data.uid
-          const room_id = roomInit.body.data.room_id
+          const { uid, room_id } = roomInit.body.data
           // 获取包裹信息
           for (const giftData of bagList) {
             if (giftData.expireat > 0 && giftData.expireat < 24 * 60 * 60 && giftData.gift_num > 0) {
               // expireat单位为分钟, 永久礼物值为0
-              await this.sendGift(mid, giftData.gift_id, giftData.gift_num, giftData.id, room_id, user)
+              await this.sendGift(uid, giftData.gift_id, giftData.gift_num, giftData.id, room_id, user)
             }
           }
         }
@@ -156,7 +163,7 @@ class SendGift extends Plugin {
         // 从uid列表中抽取主播id，并依次插入任务队列，如果有佩戴勋章，进入队列顶部
         uids.forEach((uid) => {
           medalListInfo.body.data.fansMedalList.forEach((fansMedal) => {
-            if (fansMedal.level % 20 === 0) return
+            if (fansMedal.level % 20 === 0 && !user.userData['sendGiftBy20']) return
             if (uid === fansMedal.target_id) {
               if (fansMedal.status === 1) {
                 fansMedalList.unshift({
@@ -205,15 +212,22 @@ class SendGift extends Plugin {
       for (const bag of bagList) {
         if (bag.gift_num === 0) continue
         if (bag.expireat <= 0 || bag.expireat > <number>user.userData['sendGiftDay'] * 24 * 60 * 60) break
-        if (bag.gift_id !== 1 && bag.gift_id !== 6) continue
-        let gift_value = 0
+        let gift_value
         switch (bag.gift_id) {
           case 1:
-            gift_value = 1 //辣条
+            // 辣条
+            gift_value = 1
             break
           case 6:
-            gift_value = 10 //亿圆
+            // 亿圆
+            gift_value = 10
             break
+          case 30607:
+            // 亿圆
+            // 小心心
+            gift_value = 50
+            break
+          default: continue
         }
         let send_num = Math.floor(medal.feedNum / gift_value)
         if (send_num >= bag.gift_num) send_num = bag.gift_num
